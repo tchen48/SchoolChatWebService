@@ -15,6 +15,10 @@
         "php": ">=5.5.0",
         "slim/slim": "^3.1",
         "slim/php-view": "^2.0",
-        "monolog/monolog": "^1.17"
+        "slim/extras": "*",
+        "slim/middleware": "*",
+        "monolog/monolog": "*",
+        "j4mie/paris": "*",
+        "flynsarmy/slim-monolog": "*"
     }
 }
