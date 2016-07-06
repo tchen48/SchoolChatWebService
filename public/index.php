@@ -33,11 +33,11 @@ $container['logger'] = function($c) {
     return $logger;
 };
 $container['db'] = function($c){
-    $db = $c["settings"]['db'];
-    $pdo = new PDO("mysql:host=" . $db['host'] . ";dbname=" . $db['dbname'],$db['user'], $db['pass']);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    return $pdo;
+  $db = $c["settings"]['db'];
+  $pdo = new PDO("mysql:host=" . $db['host'] . ";dbname=" . $db['dbname'],$db['user'], $db['pass']);
+  $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+  $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+  return $pdo;
 };
 
 //controller
@@ -52,4 +52,29 @@ $app->get('/hello/{name}', function (Request $request, Response $response) {
     $response->getBody()->write("Hello, $name");
     return $response;
 });
+
+
+
+$app->get('/xxx/{id}/{name}', function (Request $request, Response $response) {
+    $name = $request->getAttribute('name');
+	$id = $request->getAttribute('id');
+    $this->logger->addInfo("start hello route...");
+    $this->logger->addInfo("start accessing the database...");
+    $statement = $this->db->query('SELECT * FROM pre_common_admincp_cmenu');
+    while($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+        echo $row['id'] . ' ' . $row['utl'];
+    }
+    $response->getBody()->write("Hello, $name with ID $id");
+    return $response;
+});
+
+$app->get('getLatestPostList', function(Request $request, Response $response){	
+	$response->getBody()->write("{message: [\"hello\", \"world\", \"other post\"]}");
+	return $response;
+} );
+
+
+
+
+
 $app->run();
