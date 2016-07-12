@@ -33,6 +33,19 @@ class WindowsConfigurationUtility implements ConfigurationUtility
 		// }
 		return "";	
 	}
+	
+	public function getAvatar($uid) 
+	{
+		$preUrl = "uc_server/data/avatar/";
+		//$size = in_array($size, array('big', 'middle', 'small')) ? $size : 'middle';
+		$uid = abs(intval($uid));
+		//$uid = sprintf("%09d", $uid);
+		$dir1 = substr($uid, 0, 3);
+		$dir2 = substr($uid, 3, 2);
+		$dir3 = substr($uid, 5, 2);
+		return "hello";//$preUrl.$dir1.'/'.$dir2.'/'.$dir3.'/'.substr($uid, -2).$typeadd."_avatar_$size.jpg";
+	}
+	
 }
 
 
