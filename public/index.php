@@ -245,12 +245,29 @@ $app->post('/submitNewPost/{tid}/{uid}', function (Request $request, Response $r
 	} catch (Exception $e) {
 		$response->getBody()->write('error----'.$e->getMessage());
 	}
-	
-	
     return $response;
 });
-
-
+$app->post('/validate', function (Request $request, Response $response) {
+	try{
+		$json = $request->getBody();
+		$data = json_decode($json, true);
+		$username = $data["username"];
+		$password = $data["password"];
+		$statement = $this->db->query("SELECT * FROM pre_ucenter_members WHERE username = '".$username."'");
+		$row = $statement->fetch();
+		if(md5(md5($password).$row["salt"]) == $row["password"] ){
+			$result = array("result"=>true, "token"=>$row["uid"]);
+			return $response->getBody()->write(json_encode($result,JSON_UNESCAPED_UNICODE));
+		}
+		else {
+			$result = array("result"=>false, "token"=>"");
+			return $response->getBody()->write(json_encode($result,JSON_UNESCAPED_UNICODE));
+		} 
+	}
+	catch (Exception $e) {
+		$response->getBody()->write('error----'.$e->getMessage());
+	}
+});
 
 
 $app->run();
