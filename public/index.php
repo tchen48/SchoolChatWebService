@@ -155,6 +155,91 @@ $app->get('getLatestPostList', function(Request $request, Response $response){
 // });
 
 
+$app->post('/submitNewSubject/{fid}/{uid}', function (Request $request, Response $response) {
+	
+	$this->logger->addInfo("Submitting new topic...");
+	$fid = (int)$request->getAttribute('fid');
+	$uid = (int)$request->getAttribute('uid');
+	$postData  = json_decode($request->getBody(),true);
+	$subject = $postData["subject"];
+	$content = $postData["message"];
+	$time = time();
+	$date = date("Ymd");
+	try {
+		$statement = $this->db->query('SELECT * FROM `pre_common_member` where uid = '.$uid.' LIMIT 1');
+		$row = $statement->fetch();
+		$author = $row["username"];
+		
+		$statement = $this->db->prepare("INSERT INTO pre_forum_thread SET fid=:fid , posttableid=0 , readperm=0 , 
+		price=0 , typeid=4 , sortid=0 , author= :author, `authorid`=:uid , `subject`=:subject , dateline=:time, 
+		`lastpost`=:time , `lastposter`=:author , `displayorder`='0' , `digest`='0' , `special`='0' , `attachment`='0' , 
+		`moderated`='0' , `status`='32' , `isgroup`='0' , `replycredit`='0' , `closed`='0'");
+		$parameter = array("author"=>$author,"fid"=>$fid,"uid"=>$uid,"subject"=>$subject,"content"=>$content,"time"=>$time, "date"=>$date);
+		$statement->execute($parameter);
+		$tid = $this->db->lastInsertId();
+		$statement = $this->db->prepare("INSERT INTO pre_forum_newthread SET `tid`=:tid , `fid`=:fid , 
+		`dateline` = :tid");
+		$parameter = array("fid"=>$fid,"tid"=>$tid);
+		$statement->execute($parameter);
+		
+		$statement = $this->db->prepare("INSERT INTO pre_common_member_action_log SET `uid`=:uid , `action`='0' , `dateline`=:time");
+		$parameter = array("time"=>$time,"uid"=>$uid);
+		$statement->execute($parameter);
+		
+		$statement = $this->db->prepare("UPDATE  pre_common_member_field_home SET `recentnote`=:subject WHERE `uid`=:uid");
+		$parameter = array("subject"=>$subject,"uid"=>$uid);
+		$statement->execute($parameter);
+		
+		$statement = $this->db->prepare("insert into pre_forum_post_tableid  (pid) values (null)");
+		$statement->execute();
+		$pid = $this->db->lastInsertId();
+		
+		
+		$statement = $this->db->prepare("INSERT INTO pre_forum_post SET `fid`=:fid , `tid`=:tid , `first`='1' , `author`=:author , `authorid`=:uid , `subject`=:subject , 
+		`dateline`=:time , `message`=:content , `useip`='::1' , `port`='64212' , `invisible`='0' , `anonymous`='0' , `usesig`='1' , `htmlon`='0' , `bbcodeoff`='-1' , 
+		`smileyoff`='-1' , `parseurloff`=0 , `attachment`='0' , `tags`='' , `replycredit`='0' , `status`='0' , `pid`=:pid");
+		$parameter = array("fid"=>$fid,"tid"=>$tid,"author"=>$author,"uid"=>$uid,"subject"=>$subject,"time"=>$time,"content"=>$content,"pid"=>$pid);
+		$statement->execute($parameter);
+		
+		$statement = $this->db->prepare("UPDATE pre_common_stat SET `thread`=`thread`+1 WHERE `daytime` = "+$date);
+		
+		
+		$statement = $this->db->query('SELECT * FROM pre_common_credit_rule_log WHERE uid = '.$uid.' AND rid = 1 LIMIT 1');
+		
+		//rid 1 means post new topic, 2 means new post
+		if($statement->rowCount() < 1 ){
+			 $statement = $this->db->prepare('INSERT INTO pre_common_credit_rule_log SET uid='.$uid.', cyclenum = 1, total = 1, dateline = '.time());
+			 $statement->execute();
+		}
+		else {
+			$row = $statement->fetch();
+			$statement = $this->db->prepare('UPDATE pre_common_credit_rule_log SET cyclenum=cyclenum+1,total=total+1,dateline='.time().',extcredits1=0,extcredits2=2,extcredits3=0 where clid = '.$row['clid']);
+			$statement->execute();
+		}
+		
+		$statement = $this->db->prepare('UPDATE pre_common_member_count SET extcredits2=extcredits2+2,threads=threads+1,posts=posts+1 WHERE uid IN ('.$uid.')');
+		$statement->execute();
+		$statement = $this->db->prepare('UPDATE  pre_common_member SET credits=credits+5 WHERE uid='.$uid);
+		$statement->execute();
+		
+		$lastPost = $tid.' '.$subject.' '.time().' '.$author;
+		$statement = $this->db->prepare("UPDATE  pre_common_member_status SET `lastpost`=".$time." WHERE `uid` IN(".$uid.")");
+		$statement->execute();
+		$statement = $this->db->prepare("UPDATE  pre_forum_forum SET `lastpost`='".$lastPost."' WHERE `fid`=".$fid);
+		$statement->execute();
+		$statement = $this->db->prepare("UPDATE pre_forum_forum SET threads=threads+'1', posts=posts+'1', todayposts=todayposts+'1' WHERE `fid`=".$fid);
+		$statement->execute();
+		$statement = $this->db->prepare("INSERT INTO pre_forum_sofa SET `tid`=".$tid." , `fid`=".$fid);
+		$statement->execute();
+		$result = array("result"=>"success");
+		$response->getBody()->write(json_encode($result,JSON_UNESCAPED_UNICODE));
+	} 
+	catch (Exception $e) {
+		$response->getBody()->write('error----'.$e->getMessage());
+	}
+    return $response;
+});
+
 $app->post('/submitNewPost/{tid}/{uid}', function (Request $request, Response $response) {
     
 	
