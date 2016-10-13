@@ -354,5 +354,92 @@ $app->post('/validate', function (Request $request, Response $response) {
 	}
 });
 
+$app->post('/register', function (Request $request, Response $response) {
+	try{
+		$json = $request->getBody();
+
+		$data = json_decode($json, true);
+		$username = $data["username"];
+		$password = $data["password"];
+        $email = $data["email"];
+	    $time = time();
+	    $date = date("Ymd");
+        $salt = "f2c349";
+        $enpass = md5(md5($password).$salt);
+
+        $statement = $this->db->query("SELECT * FROM `asucssao_asu`.pre_ucenter_members WHERE username = '".$username."'");
+
+        if($statement->rowCount()>=1){
+            $result = array("success" => false, "message"=>"User name existed");
+            return $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+        }
+        $statement = $this->db->query("SELECT * FROM `asucssao_asu`.pre_ucenter_members WHERE email = '".$email."'");
+
+        if($statement->rowCount()>=1){
+            $result = array("success" => false, "message"=>"Email existed");
+            return $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+        }
+        
+        $statement = $this->db->prepare("INSERT INTO `asucssao_asu`.pre_ucenter_members SET  secques='', username='".$username."', password='".$enpass."', email='".$email."', regip='::1', regdate='".$time."', salt='".$salt."'");
+        $statement->execute();
+
+        $uid =  $this->db->lastInsertId();
+
+        // $statement = $this->db->prepare("INSERT INTO `asucssao_asu`.pre_ucenter_memberfields SET uid='".$uid."'");
+        // $statement->execute();  //DEFAULT VALUE
+		
+        $statement = $this->db->prepare("INSERT INTO pre_common_regip SET `ip`='::1' , `count`='1' , `dateline`='".$time."'");
+        $statement->execute();
+        $statement = $this->db->prepare("REPLACE INTO pre_common_member SET `uid`='".$uid."' , `username`='".$username."' , `password`='".$enpass."' , `email`='".$email."' , `adminid`='0' , `groupid`='10' , `regdate`='".$time."' , `emailstatus`='0' , `credits`='0' , `timeoffset`='9999'");
+        $statement->execute();
+	    $statement = $this->db->prepare("REPLACE INTO pre_common_member_status SET `uid`='".$uid."' , `regip`='::1' , `lastip`='::1' , `lastvisit`='".$time."' , `lastactivity`='".$time."' , `lastpost`='0' , `lastsendmail`='0'");
+        $statement->execute();
+	    $statement = $this->db->prepare("REPLACE INTO pre_common_member_count SET `uid`='".$uid."' , `extcredits1`='0' , `extcredits2`='0' , `extcredits3`='0' , `extcredits4`='0' , `extcredits5`='0' , `extcredits6`='0' , `extcredits7`='0' , `extcredits8`='0'");
+        $statement->execute();
+	    // $statement = $this->db->prepare("RREPLACE INTO pre_common_member_profile SET `uid`='".$uid."'");
+        // $statement->execute();  // SYNTAX ERROR
+		
+	    // $statement = $this->db->prepare("REPLACE INTO pre_common_member_field_forum SET `uid`='".$uid."'");
+        // $statement->execute(); // FIELD MEDAL HAS NO DEFULT VALUE
+
+
+	    $statement = $this->db->prepare("UPDATE  pre_common_member_count SET `oltime`='0' WHERE `uid`='".$uid."'");
+        $statement->execute();
+
+	    $statement = $this->db->prepare("UPDATE  pre_common_member_status SET `lastip`='::1' , `port`='51220' , `lastactivity`='".$time."' , `lastvisit`='".$time."' WHERE `uid`='".$uid."'");
+        $statement->execute();
+	    $statement = $this->db->prepare("INSERT INTO pre_common_statuser SET `uid`='".$uid."' , `daytime`='".$date."' , `type`='login'");
+        $statement->execute();
+	    $statement = $this->db->prepare("DELETE FROM pre_common_statuser WHERE `daytime` != '".$date."'");
+        $statement->execute();
+	    // $statement = $this->db->prepare("INSERT INTO pre_common_stat SET `daytime`='".$date."' , `login`='1'");
+        // $statement->execute();   // dulicate day time, just record login, canbe ignore now
+
+		
+	    $statement = $this->db->prepare("SELECT * FROM pre_common_credit_rule_log WHERE uid=".$uid." AND rid=15");
+        $statement->execute();
+	    $statement = $this->db->prepare("INSERT INTO pre_common_credit_rule_log SET `uid`='".$uid."' , `rid`='15' , `fid`='0' , `total`='1' , `cyclenum`='1' , `dateline`='1476339469' , `extcredits1`='0' , `extcredits2`='2' , `extcredits3`='0'");
+        $statement->execute();
+	    $statement = $this->db->prepare("SELECT * FROM pre_common_member_count WHERE `uid`='".$uid."'");
+        $statement->execute();
+	    $statement = $this->db->prepare("UPDATE pre_common_member_count SET `extcredits2`=`extcredits2`+'2' WHERE uid = '".$uid."'");
+        $statement->execute();
+
+
+	    $statement = $this->db->prepare("UPDATE  pre_common_member SET `credits`='2' WHERE `uid`='".$uid."'");
+        $statement->execute();
+	    $statement = $this->db->prepare("UPDATE pre_common_stat SET `register`=`register`+1 WHERE `daytime` = '".$time."'");
+        $statement->execute();
+
+		
+		$result = array("success"=>true);
+		return $response->getBody()->write(json_encode($result,JSON_UNESCAPED_UNICODE));
+	}
+	catch (Exception $e) {
+		$response->getBody()->write('error----'.$e->getMessage());
+	}
+
+});
+
 
 $app->run();
